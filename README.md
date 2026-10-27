@@ -38,20 +38,22 @@ npm run seed      # builds data/sample.db
 npm run smoke     # proves the MCP server works end to end, no API key needed
 ```
 
-### In Claude Desktop, with the interactive panel
+### In Claude Desktop, with the interactive panels
 
-Settings › Developer › Edit Config, then add the server and restart the app:
+No clone needed. Settings › Developer › Edit Config, add the server, restart the app:
 
 ```json
 {
   "mcpServers": {
     "ask-your-data": {
       "command": "npx",
-      "args": ["tsx", "/absolute/path/to/ask-your-data/src/mcp.ts"]
+      "args": ["-y", "@willisk-0/ask-your-data"]
     }
   }
 }
 ```
+
+Point it at your own data with `ASK_DB` (a SQLite file) and `ASK_DOCS` (a folder of markdown) in the `env` block. From a clone, use `"args": ["tsx", "/absolute/path/to/ask-your-data/src/mcp.ts"]` instead.
 
 Four tools render panels instead of text:
 

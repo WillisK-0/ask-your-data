@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "outDir": "dist", "rootDir": "src", "declaration": false, "sourceMap": false },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/web/**", "src/seed.ts", "src/smoke.ts", "src/smoke-ui.ts", "src/demo-data.ts", "src/server.ts"]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.willisk-0/ask-your-data",
+  "title": "Ask Your Data",
+  "description": "Claude answers questions from a SQLite database and a folder of docs, with interactive panels in Claude Desktop: sortable tables and charts, policy answers with sources, a refund approval queue, and a ticket form.",
+  "repository": { "url": "https://github.com/WillisK-0/ask-your-data", "source": "github" },
+  "websiteUrl": "https://bennettworks.io/demo/",
+  "version": "0.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@willisk-0/ask-your-data",
+      "version": "0.3.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        { "name": "ASK_DB", "description": "Path to a SQLite database to query (defaults to the bundled sample)", "isRequired": false, "format": "filepath" },
+        { "name": "ASK_DOCS", "description": "Folder of markdown docs to search (defaults to the bundled handbook)", "isRequired": false, "format": "filepath" }
+      ]
+    }
+  ]
+}
