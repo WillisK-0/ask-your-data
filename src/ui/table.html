@@ -88,7 +88,6 @@
 
 <script type="module">
   const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s ?? "");
   const isNum = (v) => typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v)));
   const fmt = (v, col) => {
     if (v == null) return "";
@@ -143,7 +142,8 @@
       const counts = {}; data.rows.forEach(r => { counts[r[c]] = (counts[r[c]] ?? 0) + 1; });
       for (const [v, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
         const b = document.createElement("button"); b.className = "chip" + (chipFilters[c] === v ? " on" : "");
-        b.innerHTML = `<span>${esc(c)}: <b></b></span><span class="muted"></span>`; b.querySelector("b").textContent = v; b.lastChild.textContent = n;
+        const lab = document.createElement("span"); lab.append(String(c) + ": "); const bv = document.createElement("b"); bv.textContent = v; lab.appendChild(bv);
+        const cnt = document.createElement("span"); cnt.className = "muted"; cnt.textContent = n; b.append(lab, cnt);
         b.onclick = () => { chipFilters[c] = chipFilters[c] === v ? null : v; render(); };
         box.appendChild(b);
       }
