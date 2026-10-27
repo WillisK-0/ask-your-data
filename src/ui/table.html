@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>Data view</title>
+<style>
+  :root { --bg: var(--color-background-primary, #fff); --bg2: var(--color-background-secondary, #f5f4ed); --fg: var(--color-text-primary, #141413); --fg2: var(--color-text-secondary, #3d3d3a); --fg3: var(--color-text-tertiary, #73726c); --line: var(--color-border-tertiary, rgba(31,30,29,.15)); --line2: var(--color-border-secondary, rgba(31,30,29,.3)); --inv: var(--color-background-inverse, #141413); --invfg: var(--color-text-inverse, #fff); --ok: var(--color-text-success, #265b19); --warn: var(--color-text-warning, #5a4815); --bad: var(--color-text-danger, #7f2c28); --okbg: var(--color-background-success, #e9f1dc); --warnbg: var(--color-background-warning, #f6eedf); --badbg: var(--color-background-danger, #f7ecec); --r: var(--border-radius-md, 8px); --sans: var(--font-sans, system-ui, sans-serif); --mono: var(--font-mono, ui-monospace, monospace); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); font-size: var(--font-text-sm-size, 14px); line-height: 1.4; color: var(--fg); background: transparent; }
+  .wrap { padding: 4px 2px 8px; }
+  .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .top .n { font-weight: 600; }
+  .top .muted { color: var(--fg3); font-size: var(--font-text-xs-size, 12px); }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 0.5px solid var(--line2); border-radius: 999px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; color: var(--fg2); font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer; min-height: 30px; }
+  .seg button.on { background: var(--inv); color: var(--invfg); }
+  .btn { border: 0.5px solid var(--line2); background: transparent; color: var(--fg); font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer; min-height: 30px; }
+  .btn:hover { background: var(--bg2); }
+  .btn.pri { background: var(--inv); color: var(--invfg); border-color: var(--inv); }
+  input.q { border: 0.5px solid var(--line2); background: var(--bg); color: var(--fg); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; min-width: 170px; min-height: 30px; }
+  input.q:focus { outline: 2px solid var(--color-ring-primary, rgba(20,20,19,.7)); outline-offset: 1px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { border: 0.5px solid var(--line2); border-radius: 999px; padding: 3px 10px; font-size: 12px; color: var(--fg2); background: transparent; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; min-height: 26px; }
+  .chip.on { background: var(--bg2); color: var(--fg); border-color: var(--line2); }
+  .chip b { font-weight: 600; }
+  .tblwrap { border: 0.5px solid var(--line); border-radius: var(--r); overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--line); white-space: nowrap; }
+  th { position: sticky; top: 0; background: var(--bg2); color: var(--fg2); font-weight: 600; font-size: 12px; cursor: pointer; user-select: none; }
+  th .dir { color: var(--fg3); margin-left: 4px; font-size: 10px; }
+  td.num, th.num { text-align: right; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr.link { cursor: pointer; }
+  tbody tr.link:hover { background: var(--bg2); }
+  tbody tr.sel { background: var(--bg2); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 0.5px solid var(--line2); }
+  .pill.ok { color: var(--ok); background: var(--okbg); border-color: transparent; }
+  .pill.warn { color: var(--warn); background: var(--warnbg); border-color: transparent; }
+  .pill.bad { color: var(--bad); background: var(--badbg); border-color: transparent; }
+  .foot { display: flex; gap: 10px; align-items: center; margin-top: 8px; color: var(--fg3); font-size: 12px; flex-wrap: wrap; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--fg3); font-size: 12px; }
+  pre { margin: 6px 0 0; padding: 10px; background: var(--bg2); border-radius: var(--r); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; color: var(--fg2); }
+  .chart { border: 0.5px solid var(--line); border-radius: var(--r); padding: 12px; }
+  .chart .row { display: grid; grid-template-columns: minmax(80px, 160px) 1fr auto; gap: 10px; align-items: center; padding: 3px 0; font-size: 13px; }
+  .chart .bar { height: 14px; background: var(--inv); border-radius: 3px; min-width: 2px; opacity: .85; }
+  .chart .lab { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chart .val { color: var(--fg3); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .chart .pick { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; font-size: 12px; color: var(--fg3); }
+  .detail { margin-top: 10px; border: 0.5px solid var(--line2); border-radius: var(--r); padding: 12px; background: var(--bg); }
+  .detail .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .detail .hd b { font-size: 15px; }
+  .detail .hd .muted { color: var(--fg3); font-size: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .kpi { background: var(--bg2); border-radius: var(--r); padding: 8px 10px; }
+  .kpi .k { color: var(--fg3); font-size: 11px; }
+  .kpi .v { font-weight: 600; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .tabs { display: inline-flex; gap: 4px; margin-bottom: 8px; }
+  .tabs button { border: 0.5px solid transparent; background: transparent; color: var(--fg2); font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 999px; cursor: pointer; min-height: 28px; }
+  .tabs button.on { background: var(--bg2); color: var(--fg); border-color: var(--line); }
+  .skel { height: 120px; background: linear-gradient(90deg, var(--bg2) 25%, var(--bg) 50%, var(--bg2) 75%); background-size: 200% 100%; border-radius: var(--r); animation: sh 1.2s infinite; }
+  @keyframes sh { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+  @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+  .empty { color: var(--fg3); padding: 18px; text-align: center; }
+  .draft { margin-top: 12px; border: 0.5px solid var(--line2); border-radius: var(--r); padding: 12px; background: var(--bg2); }
+  .draft .hd { margin-bottom: 8px; }
+  .draft .mail { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 13px; line-height: 1.5; white-space: pre-wrap; margin: 0 0 10px; }
+  .draft .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+</style></head>
+<body>
+<div class="wrap" id="root">
+  <div class="top">
+    <span class="n" id="count">Loading</span><span class="muted" id="trunc"></span>
+    <span class="spacer"></span>
+    <input class="q" id="q" type="search" placeholder="Filter rows" aria-label="Filter rows">
+    <span class="seg" role="group" aria-label="View"><button id="vTable" class="on">Table</button><button id="vChart">Chart</button></span>
+    <button class="btn" id="full" title="Open full screen">Expand</button>
+  </div>
+  <div class="chips" id="chips" hidden></div>
+  <div id="view"><div class="skel"></div></div>
+  <div id="detail" hidden></div>
+  <div class="foot">
+    <span id="status">Waiting for a query.</span>
+    <span class="spacer"></span>
+    <button class="btn" id="rerun" hidden>Run again</button>
+    <button class="btn" id="ask" hidden>Ask Claude about the selection</button>
+  </div>
+  <details id="sqlbox" hidden><summary>SQL that produced this</summary><pre id="sql"></pre></details>
+</div>
+
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "");
+  const isNum = (v) => typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v)));
+  const fmt = (v, col) => {
+    if (v == null) return "";
+    if (typeof v === "number") return /amount|revenue|total|price|paid|outstanding|mrr|arr/i.test(col) ? "$" + v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return String(v);
+  };
+  const pillFor = (v) => {
+    const s = String(v).toLowerCase();
+    if (["paid", "resolved", "active", "closed"].includes(s)) return "ok";
+    if (["open", "pending", "normal", "high"].includes(s)) return "warn";
+    if (["overdue", "escalated", "urgent", "churned", "void"].includes(s)) return "bad";
+    return "";
+  };
+
+  // --- host: real MCP Apps bridge, or a demo shim injected by the website replica ---
+  let host;
+  if (window.__DEMO_HOST__) {
+    host = window.__DEMO_HOST__;
+  } else {
+    const { App } = await import("https://unpkg.com/@modelcontextprotocol/ext-apps@1.7.5/dist/src/app-with-deps.js");
+    const app = new App({ name: "Ask your data view", version: "0.2.0" }, { availableDisplayModes: ["inline", "fullscreen"] });
+    host = {
+      onResult: (fn) => { app.ontoolresult = fn; },
+      onInput: (fn) => { app.ontoolinput = fn; },
+      callTool: (name, args) => app.callServerTool({ name, arguments: args }),
+      sendMessage: (text) => app.sendMessage({ role: "user", content: [{ type: "text", text }] }),
+      toggleFull: async () => { const m = app.getHostContext()?.displayMode === "fullscreen" ? "inline" : "fullscreen"; await app.requestDisplayMode({ mode: m }); },
+      connect: () => app.connect(),
+    };
+  }
+
+  // --- state ---
+  let data = { columns: [], rows: [], sql: "", truncated: false };
+  let lastArgs = null, sortCol = null, sortDir = 1, filter = "", view = "table", chipFilters = {}, selected = null, groupCol = null, valueCol = null;
+
+  const keyCol = () => data.columns.find(c => /^(customer_id|customer)$/i.test(c)) ?? (data.columns.includes("id") && data.columns.includes("name") && (data.columns.includes("region") || data.columns.includes("industry") || data.columns.includes("plan")) ? "id" : null);
+
+  function visibleRows() {
+    let rows = data.rows;
+    const f = filter.trim().toLowerCase();
+    if (f) rows = rows.filter(r => data.columns.some(c => String(r[c] ?? "").toLowerCase().includes(f)));
+    for (const [c, v] of Object.entries(chipFilters)) if (v != null) rows = rows.filter(r => String(r[c]) === v);
+    if (sortCol) rows = [...rows].sort((a, b) => { const x = a[sortCol], y = b[sortCol]; if (x == null) return 1; if (y == null) return -1; return (isNum(x) && isNum(y) ? Number(x) - Number(y) : String(x).localeCompare(String(y))) * sortDir; });
+    return rows;
+  }
+
+  function renderChips() {
+    const box = $("chips"); box.replaceChildren();
+    const cats = data.columns.filter(c => { const vals = new Set(data.rows.map(r => r[c])); return vals.size >= 2 && vals.size <= 6 && !data.rows.every(r => isNum(r[c])); });
+    box.hidden = cats.length === 0 || data.rows.length < 4;
+    for (const c of cats.slice(0, 2)) {
+      const counts = {}; data.rows.forEach(r => { counts[r[c]] = (counts[r[c]] ?? 0) + 1; });
+      for (const [v, n] of Object.entries(counts).sort((a, b) => b[1] - a[1])) {
+        const b = document.createElement("button"); b.className = "chip" + (chipFilters[c] === v ? " on" : "");
+        b.innerHTML = `<span>${esc(c)}: <b></b></span><span class="muted"></span>`; b.querySelector("b").textContent = v; b.lastChild.textContent = n;
+        b.onclick = () => { chipFilters[c] = chipFilters[c] === v ? null : v; render(); };
+        box.appendChild(b);
+      }
+    }
+  }
+
+  function renderTable(rows) {
+    const kc = keyCol();
+    const wrap = document.createElement("div"); wrap.className = "tblwrap";
+    const t = document.createElement("table");
+    const thead = document.createElement("thead"); const hr = document.createElement("tr");
+    for (const c of data.columns) {
+      const th = document.createElement("th"); th.textContent = c; if (data.rows.length && data.rows.every(r => r[c] == null || isNum(r[c]))) th.className = "num";
+      if (sortCol === c) { const d = document.createElement("span"); d.className = "dir"; d.textContent = sortDir > 0 ? "▲" : "▼"; th.appendChild(d); }
+      th.onclick = () => { if (sortCol === c) sortDir = -sortDir; else { sortCol = c; sortDir = 1; } render(); };
+      hr.appendChild(th);
+    }
+    thead.appendChild(hr); t.appendChild(thead);
+    const tb = document.createElement("tbody");
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      if (kc) { tr.className = "link" + (selected === r[kc] ? " sel" : ""); tr.onclick = () => openDetail(r[kc], r); tr.title = "Open customer"; }
+      for (const c of data.columns) {
+        const td = document.createElement("td"); const v = r[c];
+        if (isNum(v) && typeof v === "number") td.className = "num";
+        const p = typeof v === "string" ? pillFor(v) : "";
+        if (p) { const s = document.createElement("span"); s.className = "pill " + p; s.textContent = v; td.appendChild(s); } else td.textContent = fmt(v, c);
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    t.appendChild(tb); wrap.appendChild(t);
+    if (!rows.length) { const e = document.createElement("div"); e.className = "empty"; e.textContent = "No rows match."; wrap.appendChild(e); }
+    return wrap;
+  }
+
+  function renderChart(rows) {
+    const box = document.createElement("div"); box.className = "chart";
+    const cats = data.columns.filter(c => !data.rows.every(r => isNum(r[c])));
+    const nums = data.columns.filter(c => data.rows.length && data.rows.every(r => r[c] == null || isNum(r[c])) && !/^id$|_id$/i.test(c));
+    if (!groupCol || !cats.includes(groupCol)) groupCol = cats[0] ?? null;
+    if (!valueCol || (valueCol !== "__count" && !nums.includes(valueCol))) valueCol = nums.find(c => /revenue|amount|paid|total|overdue|tickets|escalated/i.test(c)) ?? nums[0] ?? "__count";
+    const pick = document.createElement("div"); pick.className = "pick";
+    const mk = (label, opts, cur, set) => { const s = document.createElement("span"); s.textContent = label + " "; const seg = document.createElement("span"); seg.className = "seg"; for (const o of opts) { const b = document.createElement("button"); b.textContent = o === "__count" ? "count" : o; if (o === cur) b.className = "on"; b.onclick = () => { set(o); render(); }; seg.appendChild(b); } s.appendChild(seg); return s; };
+    if (cats.length) pick.appendChild(mk("by", cats.slice(0, 4), groupCol, v => groupCol = v));
+    pick.appendChild(mk("show", ["__count", ...nums.slice(0, 3)], valueCol, v => valueCol = v));
+    box.appendChild(pick);
+    if (!groupCol) { const e = document.createElement("div"); e.className = "empty"; e.textContent = "Nothing to group by."; box.appendChild(e); return box; }
+    const agg = {}; for (const r of rows) { const k = String(r[groupCol] ?? "—"); agg[k] = (agg[k] ?? 0) + (valueCol === "__count" ? 1 : Number(r[valueCol] ?? 0)); }
+    const entries = Object.entries(agg).sort((a, b) => b[1] - a[1]).slice(0, 12); const max = Math.max(...entries.map(e => e[1]), 1);
+    for (const [k, v] of entries) {
+      const row = document.createElement("div"); row.className = "row";
+      const lab = document.createElement("span"); lab.className = "lab"; lab.textContent = k; lab.title = k;
+      const bar = document.createElement("div"); bar.className = "bar"; bar.style.width = (100 * v / max) + "%";
+      const val = document.createElement("span"); val.className = "val"; val.textContent = valueCol === "__count" ? v.toLocaleString() : fmt(v, valueCol);
+      row.append(lab, bar, val); box.appendChild(row);
+    }
+    return box;
+  }
+
+  async function openDetail(id, row) {
+    if (selected === id) { selected = null; $("detail").hidden = true; render(); return; }
+    selected = id; render();
+    const d = $("detail"); d.hidden = false; d.className = "detail"; d.innerHTML = `<div class="hd"><b></b><span class="muted">Loading…</span></div><div class="skel" style="height:80px"></div>`;
+    d.querySelector("b").textContent = row.name ?? row.customer ?? ("Customer " + id);
+    try {
+      const res = await host.callTool("customer_detail", { id: Number(id) });
+      const sc = res.structuredContent; if (!sc) throw new Error(res.content?.[0]?.text ?? "No data");
+      renderDetail(sc);
+    } catch (e) { d.innerHTML = ""; const p = document.createElement("div"); p.className = "empty"; p.textContent = "Could not load: " + e.message; d.appendChild(p); }
+  }
+
+  function draftReminder(sc, d) {
+    let box = d.querySelector(".draft"); if (box) { box.remove(); return; }
+    const over = sc.invoices.filter(i => i.status === "overdue");
+    const total = over.reduce((s, i) => s + Number(i.amount), 0);
+    const lines = over.map(i => `  • Invoice ${i.id}, $${Number(i.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}, due ${i.due}`).join("\n");
+    const text = `Subject: ${over.length === 1 ? "An invoice is" : over.length + " invoices are"} past due on your ${sc.customer.plan} account\n\nHi ${sc.customer.name} team,\n\nA quick note that the following ${over.length === 1 ? "invoice is" : "invoices are"} past due, totalling $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}:\n\n${lines}\n\nIf payment is already on its way, thank you and please ignore this. If something on the invoice looks wrong, reply here and we'll sort it out${sc.totals.open_tickets ? " alongside your open support ticket" : ""}.\n\nThanks,\nAccounts`;
+    box = document.createElement("div"); box.className = "draft";
+    box.innerHTML = `<div class="hd"><b style="font-size:13px">Draft reminder</b><span class="muted">Composed from the ${over.length} overdue ${over.length === 1 ? "invoice" : "invoices"} above. Nothing is sent from here.</span></div><pre class="mail"></pre><div class="acts"><button class="btn pri" id="copyDraft">Copy</button><button class="btn" id="sendDraft">Ask Claude to send it</button><span class="muted" id="draftNote"></span></div>`;
+    box.querySelector(".mail").textContent = text;
+    box.querySelector("#copyDraft").onclick = async () => { try { await navigator.clipboard.writeText(text); box.querySelector("#draftNote").textContent = "Copied."; } catch { box.querySelector("#draftNote").textContent = "Select the text to copy it."; } };
+    box.querySelector("#sendDraft").onclick = () => { host.sendMessage?.(`Send this payment reminder to ${sc.customer.name} through the billing system, and log it on their account:\n\n${text}`); box.querySelector("#draftNote").textContent = "Handed to Claude."; };
+    d.appendChild(box); box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function renderDetail(sc) {
+    const d = $("detail"); d.innerHTML = "";
+    const hd = document.createElement("div"); hd.className = "hd";
+    const b = document.createElement("b"); b.textContent = sc.customer.name;
+    const m = document.createElement("span"); m.className = "muted"; m.textContent = [sc.customer.industry, sc.customer.region, sc.customer.plan, sc.customer.seats + " seats", sc.customer.churned_at ? "churned " + sc.customer.churned_at : "customer since " + sc.customer.created_at].filter(Boolean).join(" · ");
+    const close = document.createElement("button"); close.className = "btn"; close.textContent = "Close"; close.style.marginLeft = "auto"; close.onclick = () => { selected = null; d.hidden = true; render(); };
+    if (sc.totals.overdue > 0) { const dr = document.createElement("button"); dr.className = "btn pri"; dr.textContent = "Draft reminder"; dr.onclick = () => draftReminder(sc, d); hd.append(b, m, dr, close); }
+    else hd.append(b, m, close);
+    d.appendChild(hd);
+    const k = document.createElement("div"); k.className = "kpis";
+    for (const [label, val] of [["Paid, lifetime", "$" + sc.totals.paid.toLocaleString()], ["Outstanding", "$" + sc.totals.outstanding.toLocaleString()], ["Overdue invoices", sc.totals.overdue], ["Open tickets", sc.totals.open_tickets], ["Avg CSAT", sc.totals.avg_csat ?? "—"]]) {
+      const el = document.createElement("div"); el.className = "kpi"; el.innerHTML = `<div class="k"></div><div class="v"></div>`; el.firstChild.textContent = label; el.lastChild.textContent = val; k.appendChild(el);
+    }
+    d.appendChild(k);
+    const tabs = document.createElement("div"); tabs.className = "tabs"; const body = document.createElement("div");
+    const sets = { Tickets: sc.tickets, Invoices: sc.invoices }; let cur = "Tickets";
+    const draw = () => { body.replaceChildren(); const rows = sets[cur]; const cols = rows.length ? Object.keys(rows[0]) : []; const saved = data; data = { columns: cols, rows, sql: "" }; const sc2 = sortCol, sd = sortDir, f = filter, cf = chipFilters, sel = selected; sortCol = null; filter = ""; chipFilters = {}; selected = null; body.appendChild(renderTable(rows.slice(0, 50))); data = saved; sortCol = sc2; sortDir = sd; filter = f; chipFilters = cf; selected = sel; tabs.querySelectorAll("button").forEach(x => x.className = x.textContent.startsWith(cur) ? "on" : ""); };
+    for (const name of Object.keys(sets)) { const t = document.createElement("button"); t.textContent = `${name} (${sets[name].length})`; t.onclick = () => { cur = name; draw(); }; tabs.appendChild(t); }
+    d.append(tabs, body); draw();
+  }
+
+  function render() {
+    const rows = visibleRows();
+    $("count").textContent = `${rows.length.toLocaleString()} ${rows.length === 1 ? "row" : "rows"}` + (rows.length !== data.rows.length ? ` of ${data.rows.length.toLocaleString()}` : "");
+    $("trunc").textContent = data.truncated ? "capped at 200, aggregate in SQL for more" : "";
+    renderChips();
+    const v = $("view"); v.replaceChildren(view === "table" ? renderTable(rows) : renderChart(rows));
+    $("vTable").className = view === "table" ? "on" : ""; $("vChart").className = view === "chart" ? "on" : "";
+    $("ask").hidden = selected == null;
+    if (!$("detail").hidden && selected == null) $("detail").hidden = true;
+  }
+
+  function show(result) {
+    const sc = result.structuredContent;
+    if (!sc || !Array.isArray(sc.rows)) { $("view").innerHTML = ""; const e = document.createElement("div"); e.className = "empty"; e.textContent = result.content?.[0]?.text ?? "No result."; $("view").appendChild(e); $("count").textContent = "No data"; return; }
+    data = { columns: sc.columns ?? (sc.rows[0] ? Object.keys(sc.rows[0]) : []), rows: sc.rows, sql: sc.sql ?? "", truncated: !!sc.truncated };
+    sortCol = null; filter = ""; $("q").value = ""; chipFilters = {}; selected = null; $("detail").hidden = true; groupCol = null; valueCol = null;
+    $("status").textContent = keyCol() ? "Click a row to open the customer." : "Sort by clicking a column.";
+    $("rerun").hidden = !lastArgs; $("sqlbox").hidden = !data.sql; $("sql").textContent = data.sql;
+    render();
+  }
+
+  $("q").oninput = (e) => { filter = e.target.value; render(); };
+  $("vTable").onclick = () => { view = "table"; render(); };
+  $("vChart").onclick = () => { view = "chart"; render(); };
+  $("full").onclick = () => host.toggleFull?.();
+  $("rerun").onclick = async () => { $("status").textContent = "Running…"; show(await host.callTool("query", lastArgs)); };
+  $("ask").onclick = () => { const r = data.rows.find(x => x[keyCol()] === selected); host.sendMessage?.(`Tell me more about ${r?.name ?? r?.customer ?? "customer " + selected} (id ${selected}): what is going on with their tickets and invoices, and what should we do?`); };
+  window.addEventListener("demo:view", (e) => { view = e.detail === "chart" ? "chart" : "table"; render(); });
+  host.onInput?.(({ arguments: args }) => { if (args) lastArgs = args; });
+  host.onResult?.(show);
+  await host.connect?.();
+</script>
+</body></html>

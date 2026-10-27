@@ -1,6 +1,6 @@
 {
   "name": "ask-your-data",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "An MCP connector and chat UI that let Claude answer questions from a real database and a folder of docs. Zero native dependencies.",
@@ -9,10 +9,13 @@
     "mcp": "tsx src/mcp.ts",
     "serve": "tsx src/server.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "smoke": "tsx src/smoke.ts"
+    "smoke": "tsx src/smoke.ts",
+    "smoke:ui": "tsx src/smoke-ui.ts",
+    "demo-data": "tsx src/demo-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "express": "^5.1.0",
     "react": "^19.3.1",
