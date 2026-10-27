@@ -5,9 +5,12 @@ import { dirname, join } from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { ReadOnlyDb } from "./db.js";
 import { customerDetail } from "./detail.js";
+import { DocSearch } from "./db.js";
+import { refundQueue } from "./panels.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const db = new ReadOnlyDb(process.env.ASK_DB ?? join(here, "..", "data", "sample.db"));
+const docs = new DocSearch(process.env.ASK_DOCS ?? join(here, "..", "docs"));
 const out = process.argv[2] ?? join(here, "..", "..", "site-v2", "demo", "data.json");
 
 const scenarios = [
@@ -49,6 +52,25 @@ FROM agents a
 LEFT JOIN tickets t ON t.agent_id = a.id
 GROUP BY a.id
 ORDER BY escalated DESC, open_tickets DESC` },
+    { id: "newticket", ui: "ticket", tool: "draft_ticket", ask: "Harbor Outfitters just emailed that their webhook retries are stuck again. Open an urgent ticket for them.",
+      reply: "I've drafted the ticket from their history: it's the same webhook issue as ticket 531, still open. Check the fields and hit Create, or fix anything I got wrong first.",
+      draft: { customer_id: 175, customer: "Harbor Outfitters", subject: "Webhook retries stuck again (follow-up to #531)", category: "integration", priority: "urgent", body: "Customer reports webhook retries are stuck again. Ticket 531 (bug, opened 2026-04-07) is still open for the same symptom. Enterprise plan, 41 seats, 4 overdue invoices. Needs an engineer to check the retry queue and confirm whether this is the same root cause." } },
+  ]},
+  { id: "policy", label: "Policy", who: "New support agent", view: "table", prompts: [
+    { id: "dup", ui: "docs", tool: "search_docs", ask: "A customer was charged twice for $450. Can I just refund it, or do I need to ask someone?",
+      reply: "You can approve that yourself. The refund policy says Tier 1 agents may approve duplicate-charge refunds up to $600 without escalation, and it goes back in full within 5 business days once Billing confirms the duplicate. The section is highlighted in the panel.",
+      query: "duplicate charge refund approve without escalation" },
+    { id: "escalate", ui: "docs", tool: "search_docs", ask: "When am I supposed to escalate an urgent ticket?",
+      reply: "Two triggers from the runbook: any urgent ticket older than 4 hours without a resolution, or any Enterprise customer with CSAT below 3. Set it to escalated, assign an Escalations agent, and don't promise a timeline until Tier 2 has triaged.",
+      query: "escalate urgent ticket hours escalations team" },
+    { id: "sla", ui: "docs", tool: "search_docs", ask: "What's the first-response target for a High ticket from a Business-plan customer?",
+      reply: "Four business hours for High, and Business-plan customers also get a named escalation contact. The 30-minute target only applies to urgent tickets. Both sections are in the panel with the matching lines highlighted.",
+      query: "first response target high business hours plan" },
+  ]},
+  { id: "billing", label: "Billing", who: "Billing approver", view: "table", prompts: [
+    { id: "refunds", ui: "approvals", tool: "refund_queue", ask: "Show me the refund requests waiting on me.",
+      reply: "{n} requests are pending. Each one shows the policy rule that applies, so the ones you can approve on your own have Approve enabled and the rest offer Escalate. Decisions are recorded as you click.",
+      sql: "" },
   ]},
   { id: "finance", label: "Finance", who: "Finance", view: "chart", prompts: [
     { id: "revenue", ask: "Show me paid revenue by region and plan for 2026.",
@@ -130,15 +152,30 @@ const details: Record<string, unknown> = {};
 const outScenarios = [];
 for (const sc of scenarios) {
   const prompts = [];
-  for (const p of sc.prompts) {
-    const { rows, truncated } = await db.query(p.sql);
-    const columns = rows.length ? Object.keys(rows[0] as object) : [];
-    prompts.push({ ...p, result: { sql: p.sql, columns, rows, rowCount: rows.length, truncated } });
-    for (const r of rows as Record<string, unknown>[]) {
-      const id = r.id ?? r.customer_id;
-      if (typeof id === "number" && !details[id]) details[id] = await customerDetail(db, id);
+  for (const p of sc.prompts as Array<Record<string, unknown> & { id: string; ui?: string; tool?: string; sql?: string; query?: string; draft?: unknown }>) {
+    const ui = p.ui ?? "table", tool = p.tool ?? "query";
+    if (ui === "table") {
+      const { rows, truncated } = await db.query(p.sql!);
+      const columns = rows.length ? Object.keys(rows[0] as object) : [];
+      prompts.push({ ...p, ui, tool, args: { sql: p.sql }, result: { sql: p.sql, columns, rows, rowCount: rows.length, truncated } });
+      for (const r of rows as Record<string, unknown>[]) {
+        const id = r.id ?? r.customer_id;
+        if (typeof id === "number" && !details[id]) details[id] = await customerDetail(db, id);
+      }
+      console.log(sc.id, p.id, rows.length, "rows");
+    } else if (ui === "docs") {
+      const results = docs.search(p.query!, 3);
+      prompts.push({ ...p, ui, tool, args: { query: p.query }, result: { query: p.query, results, rowCount: results.length } });
+      console.log(sc.id, p.id, results.length, "sections");
+    } else if (ui === "approvals") {
+      const requests = await refundQueue(db);
+      prompts.push({ ...p, ui, tool, args: {}, result: { requests, rowCount: requests.length } });
+      for (const r of requests) if (!details[r.customer_id]) details[r.customer_id] = await customerDetail(db, r.customer_id);
+      console.log(sc.id, p.id, requests.length, "requests");
+    } else if (ui === "ticket") {
+      prompts.push({ ...p, ui, tool, args: p.draft, result: { ...(p.draft as object), rowCount: 1 } });
+      console.log(sc.id, p.id, "ticket draft");
     }
-    console.log(sc.id, p.id, rows.length, "rows");
   }
   outScenarios.push({ ...sc, prompts });
 }

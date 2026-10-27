@@ -13,8 +13,12 @@ No native dependencies. SQLite via Node's built-in `node:sqlite`, so it runs any
 src/db.ts       read-only SQLite access, schema introspection, keyword doc search
 src/tools.ts    four tools defined once: list_tables, describe_table, query, search_docs
 src/detail.ts   customer_detail: one customer with totals, tickets and invoices
-src/mcp.ts      stdio MCP server; `query` is registered as an MCP App with the panel below
-src/ui/table.html  the panel Claude Desktop renders for query results (MCP Apps, ext-apps 1.7.5)
+src/panels.ts   refund queue, refund decisions and ticket creation (in memory; the db stays read-only)
+src/mcp.ts      stdio MCP server; four tools are MCP Apps that render the panels below
+src/ui/table.html      query results: sort, filter, chart, click a customer to drill in, draft a reminder
+src/ui/docs.html       search_docs results with the source section and matching terms highlighted
+src/ui/approvals.html  refund_queue: approve, reject or escalate with the policy rule on each request
+src/ui/ticket.html     draft_ticket: a form Claude pre-fills and the user confirms
 src/smoke-ui.ts    checks the MCP App wiring the way a host would
 src/demo-data.ts   builds the canned data for the bennettworks.io demo page
 src/server.ts   Express /api/chat using the Anthropic SDK tool runner with the same tools
@@ -49,7 +53,14 @@ Settings › Developer › Edit Config, then add the server and restart the app:
 }
 ```
 
-Ask: *"Which customers have an overdue invoice and an open urgent ticket?"* Claude calls `query`, and the result renders as a panel: sort by any column, filter, flip to a chart, click a customer row to open their tickets and invoices, and draft a payment reminder from the overdue invoices. `npm run smoke:ui` checks the wiring without Claude.
+Four tools render panels instead of text:
+
+- **query** → a table you can sort, filter and flip to a chart; click a customer to see their tickets and invoices and draft a payment reminder.
+- **search_docs** → the matching handbook sections with the source file, heading and matched terms highlighted.
+- **refund_queue** → refund requests with the policy rule on each; approve, reject or escalate from the panel (`decide_refund` records it).
+- **draft_ticket** → a ticket form Claude fills from the conversation; you check it and click Create (`create_ticket`).
+
+`npm run smoke:ui` checks all four without Claude.
 
 ### As an MCP server in Claude Code
 

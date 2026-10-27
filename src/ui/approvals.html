@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>Refund approvals</title>
+<style>
+  :root { --bg: var(--color-background-primary, #fff); --bg2: var(--color-background-secondary, #f5f4ed); --fg: var(--color-text-primary, #141413); --fg2: var(--color-text-secondary, #3d3d3a); --fg3: var(--color-text-tertiary, #73726c); --line: var(--color-border-tertiary, rgba(31,30,29,.15)); --line2: var(--color-border-secondary, rgba(31,30,29,.3)); --inv: var(--color-background-inverse, #141413); --invfg: var(--color-text-inverse, #fff); --ok: var(--color-text-success, #265b19); --okbg: var(--color-background-success, #e9f1dc); --warn: var(--color-text-warning, #5a4815); --warnbg: var(--color-background-warning, #f6eedf); --bad: var(--color-text-danger, #7f2c28); --badbg: var(--color-background-danger, #f7ecec); --r: var(--border-radius-md, 8px); --sans: var(--font-sans, system-ui, sans-serif); --mono: var(--font-mono, ui-monospace, monospace); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); font-size: 14px; line-height: 1.4; color: var(--fg); background: transparent; font-variant-numeric: tabular-nums; }
+  .wrap { padding: 4px 2px 8px; }
+  .top { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .top b { font-weight: 600; }
+  .top .muted { color: var(--fg3); font-size: 12px; }
+  .top .spacer { flex: 1; }
+  .seg { display: inline-flex; border: 0.5px solid var(--line2); border-radius: 999px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; color: var(--fg2); font: inherit; font-size: 12px; padding: 6px 12px; cursor: pointer; min-height: 30px; }
+  .seg button.on { background: var(--inv); color: var(--invfg); }
+  .req { display: grid; grid-template-columns: 1fr auto; gap: 8px 14px; border: 0.5px solid var(--line); border-radius: var(--r); padding: 12px 14px; margin-bottom: 8px; background: var(--bg); align-items: start; }
+  .req.done { opacity: .72; }
+  .req .who { font-weight: 600; }
+  .req .meta { color: var(--fg3); font-size: 12px; margin-top: 2px; }
+  .req .amt { font-size: 18px; font-weight: 600; text-align: right; }
+  .req .rule { grid-column: 1 / -1; font-size: 12px; color: var(--fg2); background: var(--bg2); border-radius: 6px; padding: 7px 10px; display: flex; gap: 8px; align-items: flex-start; }
+  .req .rule i { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; background: var(--warn); }
+  .req .rule.ok i { background: var(--ok); }
+  .req .rule.no i { background: var(--bad); }
+  .req .acts { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { border: 0.5px solid var(--line2); background: transparent; color: var(--fg); font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer; min-height: 30px; }
+  .btn:hover { background: var(--bg2); }
+  .btn.pri { background: var(--inv); color: var(--invfg); border-color: var(--inv); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 0.5px solid transparent; }
+  .pill.ok { color: var(--ok); background: var(--okbg); } .pill.bad { color: var(--bad); background: var(--badbg); } .pill.warn { color: var(--warn); background: var(--warnbg); } .pill.pend { color: var(--fg2); border-color: var(--line2); }
+  .foot { color: var(--fg3); font-size: 12px; margin-top: 6px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .foot .spacer { flex: 1; }
+  .empty { color: var(--fg3); padding: 18px; text-align: center; }
+  .skel { height: 100px; background: linear-gradient(90deg, var(--bg2) 25%, var(--bg) 50%, var(--bg2) 75%); background-size: 200% 100%; border-radius: var(--r); animation: sh 1.2s infinite; }
+  @keyframes sh { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+</style></head>
+<body>
+<div class="wrap" id="root">
+  <div class="top"><b id="title">Refund requests</b><span class="muted" id="sub">Loading…</span><span class="spacer"></span><span class="seg" role="group"><button id="fPend" class="on">Pending</button><button id="fAll">All</button></span></div>
+  <div id="list"><div class="skel"></div></div>
+  <div class="foot"><span id="status">Each request shows the policy rule that applies. Approve and reject record a decision; nothing moves money from here.</span><span class="spacer"></span><button class="btn" id="summ" hidden>Ask Claude to summarize my decisions</button></div>
+</div>
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  let host;
+  if (window.__DEMO_HOST__) host = window.__DEMO_HOST__;
+  else {
+    const { App } = await import("https://unpkg.com/@modelcontextprotocol/ext-apps@1.7.5/dist/src/app-with-deps.js");
+    const app = new App({ name: "Refund approvals", version: "0.2.0" });
+    host = { onResult: (fn) => { app.ontoolresult = fn; }, onInput: (fn) => { app.ontoolinput = fn; }, callTool: (name, args) => app.callServerTool({ name, arguments: args }), sendMessage: (t) => app.sendMessage({ role: "user", content: [{ type: "text", text: t }] }), connect: () => app.connect() };
+  }
+  let reqs = [], onlyPending = true;
+  const usd = (n) => "$" + Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pillCls = { pending: "pend", approved: "ok", rejected: "bad", escalated: "warn" };
+  function render() {
+    const list = $("list"); list.replaceChildren();
+    const shown = onlyPending ? reqs.filter(r => r.status === "pending") : reqs;
+    const pend = reqs.filter(r => r.status === "pending");
+    $("sub").textContent = `${pend.length} pending · ${usd(pend.reduce((s, r) => s + r.amount, 0))} requested`;
+    $("fPend").className = onlyPending ? "on" : ""; $("fAll").className = onlyPending ? "" : "on";
+    $("summ").hidden = !reqs.some(r => r.status !== "pending");
+    if (!shown.length) { const e = document.createElement("div"); e.className = "empty"; e.textContent = onlyPending ? "Nothing pending. Nice." : "No requests."; list.appendChild(e); return; }
+    for (const r of shown) {
+      const d = document.createElement("div"); d.className = "req" + (r.status !== "pending" ? " done" : "");
+      const left = document.createElement("div"); const who = document.createElement("div"); who.className = "who"; who.textContent = r.customer;
+      const meta = document.createElement("div"); meta.className = "meta"; meta.textContent = `${r.reason} · ${r.plan} plan · requested ${r.requested} · invoice ${r.id}`; left.append(who, meta);
+      const amt = document.createElement("div"); amt.className = "amt"; amt.textContent = usd(r.amount);
+      const rule = document.createElement("div"); rule.className = "rule " + (r.can_approve ? "ok" : (r.plan === "Enterprise" || /over \$600/.test(r.rule) ? "no" : "")); const dot = document.createElement("i"); const rt = document.createElement("span"); rt.textContent = r.rule; rule.append(dot, rt);
+      const acts = document.createElement("div"); acts.className = "acts";
+      const st = document.createElement("span"); st.className = "pill " + pillCls[r.status]; st.textContent = r.status + (r.note ? " · " + r.note : ""); acts.appendChild(st);
+      if (r.status === "pending") {
+        const mk = (label, decision, pri) => { const b = document.createElement("button"); b.className = "btn" + (pri ? " pri" : ""); b.textContent = label; b.onclick = async () => { b.disabled = true; try { const res = await host.callTool("decide_refund", { id: r.id, decision }); const out = res.structuredContent ?? {}; r.status = out.status ?? decision; r.note = out.note; } catch (e) { r.note = "failed: " + e.message; } render(); }; return b; };
+        if (r.can_approve) acts.append(mk("Approve", "approved", true), mk("Reject", "rejected", false));
+        else acts.append(mk("Escalate", "escalated", true), mk("Reject", "rejected", false));
+      }
+      d.append(left, amt, rule, acts); list.appendChild(d);
+    }
+  }
+  function show(result) {
+    const sc = result.structuredContent;
+    if (!sc || !Array.isArray(sc.requests)) { $("list").replaceChildren(); const e = document.createElement("div"); e.className = "empty"; e.textContent = result.content?.[0]?.text ?? "No result."; $("list").appendChild(e); return; }
+    reqs = sc.requests; render();
+  }
+  $("fPend").onclick = () => { onlyPending = true; render(); }; $("fAll").onclick = () => { onlyPending = false; render(); };
+  $("summ").onclick = () => { const done = reqs.filter(r => r.status !== "pending"); host.sendMessage?.(`Summarize the refund decisions I just made and draft the customer emails:\n` + done.map(r => `- ${r.customer}: ${usd(r.amount)} (${r.reason}) → ${r.status}`).join("\n")); };
+  host.onResult?.(show);
+  await host.connect?.();
+</script>
+</body></html>

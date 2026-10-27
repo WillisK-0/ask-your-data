@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="color-scheme" content="light dark"><title>New ticket</title>
+<style>
+  :root { --bg: var(--color-background-primary, #fff); --bg2: var(--color-background-secondary, #f5f4ed); --fg: var(--color-text-primary, #141413); --fg2: var(--color-text-secondary, #3d3d3a); --fg3: var(--color-text-tertiary, #73726c); --line: var(--color-border-tertiary, rgba(31,30,29,.15)); --line2: var(--color-border-secondary, rgba(31,30,29,.3)); --inv: var(--color-background-inverse, #141413); --invfg: var(--color-text-inverse, #fff); --ok: var(--color-text-success, #265b19); --okbg: var(--color-background-success, #e9f1dc); --r: var(--border-radius-md, 8px); --sans: var(--font-sans, system-ui, sans-serif); --mono: var(--font-mono, ui-monospace, monospace); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); font-size: 14px; line-height: 1.4; color: var(--fg); background: transparent; }
+  .wrap { padding: 4px 2px 8px; }
+  .top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .top b { font-weight: 600; }
+  .top .muted { color: var(--fg3); font-size: 12px; }
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  form[hidden] { display: none; }
+  .f { display: grid; gap: 4px; }
+  .f.wide { grid-column: 1 / -1; }
+  label { font-size: 12px; color: var(--fg3); }
+  input, select, textarea { font: inherit; font-size: 14px; color: var(--fg); background: var(--bg); border: 0.5px solid var(--line2); border-radius: var(--r); padding: 8px 10px; min-height: 38px; width: 100%; }
+  textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--color-ring-primary, rgba(20,20,19,.7)); outline-offset: 1px; }
+  @media (max-width: 520px) { form { grid-template-columns: 1fr; } }
+  .seg { display: inline-flex; border: 0.5px solid var(--line2); border-radius: 999px; overflow: hidden; }
+  .seg button { border: 0; background: transparent; color: var(--fg2); font: inherit; font-size: 12px; padding: 7px 12px; cursor: pointer; min-height: 32px; }
+  .seg button.on { background: var(--inv); color: var(--invfg); }
+  .acts { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+  .btn { border: 0.5px solid var(--line2); background: transparent; color: var(--fg); font: inherit; font-size: 13px; padding: 8px 14px; border-radius: 999px; cursor: pointer; min-height: 34px; }
+  .btn.pri { background: var(--inv); color: var(--invfg); border-color: var(--inv); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .note { color: var(--fg3); font-size: 12px; }
+  .done { border: 0.5px solid var(--ok); background: var(--okbg); color: var(--ok); border-radius: var(--r); padding: 12px 14px; margin-top: 8px; }
+  .done b { display: block; margin-bottom: 2px; }
+  .prefill { font-size: 12px; color: var(--fg3); grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; }
+  .prefill i { width: 8px; height: 8px; border-radius: 50%; background: var(--inv); display: inline-block; }
+</style></head>
+<body>
+<div class="wrap" id="root">
+  <div class="top"><b>New support ticket</b><span class="muted" id="sub">Claude filled this in from the conversation. Check it, then create.</span></div>
+  <form id="f">
+    <div class="prefill"><i></i><span id="who">Customer</span></div>
+    <div class="f wide"><label for="subject">Subject</label><input id="subject" name="subject" required></div>
+    <div class="f"><label for="category">Category</label><select id="category" name="category"><option>bug</option><option>billing</option><option>integration</option><option>performance</option><option>account</option><option>feature-request</option></select></div>
+    <div class="f"><label>Priority</label><span class="seg" id="prio"><button type="button" data-v="low">Low</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="high">High</button><button type="button" data-v="urgent">Urgent</button></span></div>
+    <div class="f wide"><label for="body">Details</label><textarea id="body" name="body"></textarea></div>
+    <div class="acts"><button type="submit" class="btn pri" id="create">Create ticket</button><button type="button" class="btn" id="discard">Discard</button><span class="note" id="status"></span></div>
+  </form>
+  <div id="result"></div>
+</div>
+<script type="module">
+  const $ = (id) => document.getElementById(id);
+  let host;
+  if (window.__DEMO_HOST__) host = window.__DEMO_HOST__;
+  else {
+    const { App } = await import("https://unpkg.com/@modelcontextprotocol/ext-apps@1.7.5/dist/src/app-with-deps.js");
+    const app = new App({ name: "New ticket", version: "0.2.0" });
+    host = { onResult: (fn) => { app.ontoolresult = fn; }, onInput: (fn) => { app.ontoolinput = fn; }, callTool: (name, args) => app.callServerTool({ name, arguments: args }), sendMessage: (t) => app.sendMessage({ role: "user", content: [{ type: "text", text: t }] }), connect: () => app.connect() };
+  }
+  let draft = { customer_id: null, customer: "", priority: "normal" };
+  const setPrio = (v) => { draft.priority = v; $("prio").querySelectorAll("button").forEach(b => b.className = b.dataset.v === v ? "on" : ""); };
+  $("prio").querySelectorAll("button").forEach(b => b.onclick = () => setPrio(b.dataset.v));
+  function fill(d) {
+    draft = { ...draft, ...d };
+    $("who").textContent = d.customer ? `For ${d.customer}${d.customer_id ? " (id " + d.customer_id + ")" : ""}` : "Customer not set";
+    if (d.subject != null) $("subject").value = d.subject; if (d.category) $("category").value = d.category; if (d.body != null) $("body").value = d.body; setPrio(d.priority ?? draft.priority);
+  }
+  $("f").onsubmit = async (e) => {
+    e.preventDefault(); $("create").disabled = true; $("status").textContent = "Creating…";
+    try {
+      const res = await host.callTool("create_ticket", { customer_id: Number(draft.customer_id), subject: $("subject").value, category: $("category").value, priority: draft.priority, body: $("body").value });
+      const t = res.structuredContent; if (!t) throw new Error(res.content?.[0]?.text ?? "No result");
+      $("f").hidden = true; const d = document.createElement("div"); d.className = "done"; const b = document.createElement("b"); b.textContent = `Ticket ${t.id} created`; const s = document.createElement("span"); s.textContent = `${t.priority} · ${t.category} · ${draft.customer}. Claude can reference it from here on.`; d.append(b, s); $("result").appendChild(d);
+    } catch (err) { $("status").textContent = "Could not create: " + err.message; $("create").disabled = false; }
+  };
+  $("discard").onclick = () => { $("f").hidden = true; const d = document.createElement("div"); d.className = "note"; d.textContent = "Discarded. Nothing was created."; $("result").appendChild(d); };
+  host.onInput?.(({ arguments: args }) => { if (args) fill(args); });
+  host.onResult?.((result) => { if (result.structuredContent) fill(result.structuredContent); });
+  await host.connect?.();
+</script>
+</body></html>
